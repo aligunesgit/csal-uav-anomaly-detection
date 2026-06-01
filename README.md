@@ -45,12 +45,32 @@ This repository implements the **cost-sensitive active learning (cAL)** framewor
 
 ---
 
+## Quickstart
+
+```bash
+# 1. Clone
+git clone https://github.com/aligunesgit/csal-uav-anomaly-detection.git
+cd csal-uav-anomaly-detection
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Download dataset → place in data/ (see data/README.md)
+
+# 4. Run everything
+bash run_all.sh
+```
+
+All scripts must be run from the **repository root** (the directory containing `run_all.sh`).
+
+---
+
 ## Setup
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/csal-uav-anomaly-detection.git
+git clone https://github.com/aligunesgit/csal-uav-anomaly-detection.git
 cd csal-uav-anomaly-detection
 ```
 

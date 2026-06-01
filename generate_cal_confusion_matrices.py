@@ -2,7 +2,11 @@
 """Generate final-budget confusion matrices for the cAL experiment."""
 
 import json
+import sys
 from pathlib import Path
+
+# ensure repo root is on the path regardless of working directory
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import matplotlib
 matplotlib.use("Agg")
