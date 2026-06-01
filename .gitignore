@@ -1,0 +1,40 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Results — keep JSON, ignore large binary outputs
+results/**/*.png
+results/**/*.pdf
+results/**/*.svg
+results/**/*.log
+results/**/*.pyc
+
+# Dataset binary files (download separately from Zenodo)
+data/*.raw
+data/*.pgm
+data/**/*.raw
+data/**/*.pgm
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
