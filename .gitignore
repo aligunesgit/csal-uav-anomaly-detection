@@ -38,3 +38,17 @@ data/**/*.pgm
 .idea/
 *.swp
 *.swo
+
+# LaTeX build artifacts
+*.aux
+*.blg
+*.log
+*.bbl
+missfont.log
+J_STARS_template/
+
+# Session / internal notes
+SESSION_HANDOFF.md
+
+# Subprojects
+organon/
