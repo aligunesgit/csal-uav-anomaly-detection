@@ -124,7 +124,12 @@ idx_s=rng.choice(len(Xp),min(3000,len(Xp)),replace=False)
 Xs=Xp[idx_s]; ys=yp[idx_s]
 exp = shap.TreeExplainer(rf_full)
 sv = exp.shap_values(Xs)
-sv_a = sv[1] if isinstance(sv,list) else sv
+if isinstance(sv, list):
+    sv_a = sv[1]
+elif sv.ndim == 3:
+    sv_a = sv[:, :, 1]
+else:
+    sv_a = sv
 
 mean_shap = np.abs(sv_a).mean(axis=0)
 shap_imp = {BANDS[b]:float(mean_shap[b]) for b in range(5)}
@@ -142,7 +147,12 @@ img_shap={}
 for name,(data,gt) in ALL.items():
     Xi,yi = sample_pixels(data,gt,list(range(5)),2000)
     svi = exp.shap_values(Xi)
-    svi_a = svi[1] if isinstance(svi,list) else svi
+    if isinstance(svi, list):
+        svi_a = svi[1]
+    elif svi.ndim == 3:
+        svi_a = svi[:, :, 1]
+    else:
+        svi_a = svi
     imp = np.abs(svi_a).mean(axis=0)
     img_shap[name]={BANDS[b]:float(imp[b]) for b in range(5)}
     ranked=sorted(enumerate(imp),key=lambda x:x[1],reverse=True)
