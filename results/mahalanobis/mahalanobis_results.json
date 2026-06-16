@@ -1,0 +1,58 @@
+{
+  "z1": {
+    "threshold": 5.5633,
+    "youden_j_pool": 0.769,
+    "TP": 871,
+    "FN": 98,
+    "FP": 3247,
+    "TN": 20104,
+    "fnr": 0.101,
+    "recall": 0.899,
+    "fpr": 0.139,
+    "precision": 0.212,
+    "f1": 0.342,
+    "cost_rp4": 14.96
+  },
+  "z2": {
+    "threshold": 4.6594,
+    "youden_j_pool": 0.674,
+    "TP": 391,
+    "FN": 110,
+    "FP": 710,
+    "TN": 4745,
+    "fnr": 0.22,
+    "recall": 0.78,
+    "fpr": 0.13,
+    "precision": 0.355,
+    "f1": 0.488,
+    "cost_rp4": 19.31
+  },
+  "e1": {
+    "threshold": 4.1169,
+    "youden_j_pool": 0.834,
+    "TP": 471,
+    "FN": 27,
+    "FP": 1148,
+    "TN": 8754,
+    "fnr": 0.054,
+    "recall": 0.946,
+    "fpr": 0.116,
+    "precision": 0.291,
+    "f1": 0.445,
+    "cost_rp4": 12.08
+  },
+  "e2": {
+    "threshold": 5.2268,
+    "youden_j_pool": 0.753,
+    "TP": 313,
+    "FN": 27,
+    "FP": 1486,
+    "TN": 7664,
+    "fnr": 0.079,
+    "recall": 0.921,
+    "fpr": 0.162,
+    "precision": 0.174,
+    "f1": 0.293,
+    "cost_rp4": 16.8
+  }
+}
