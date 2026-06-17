@@ -531,7 +531,7 @@ def plot_aggregated(all_results, out_dir):
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     x_ref = np.array(all_results[list(all_results.keys())[0]][STRAT_NAMES[0]]["x"])
 
-    for metric, ax, ylbl in [("auc","AUC-ROC"), ("ap","Avg Precision")]:
+    for metric, ylbl in [("auc","AUC-ROC"), ("ap","Avg Precision")]:
         for strat, col, ls in STRATEGIES:
             means = []
             for sc in all_results.values():
