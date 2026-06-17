@@ -564,7 +564,8 @@ def plot_final_bar(all_results, out_dir, step_idx=-1):
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
     col_map = {s[0]:s[1] for s in STRATEGIES}
 
-    for mi, (metric, ax) in enumerate([("auc_mean","AUC-ROC"), ("ap_mean","Avg Precision")]):
+    for mi, (metric, _title) in enumerate([("auc_mean","AUC-ROC"), ("ap_mean","Avg Precision")]):
+        ax = axes[mi]
         vals_by_strat = {}
         for strat in STRAT_NAMES:
             scene_vals = [np.array(sc[strat][metric])[step_idx]
