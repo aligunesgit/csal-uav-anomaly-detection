@@ -216,6 +216,18 @@ def false_colour(img, gamma=0.45):
         fci /= mx
     return (np.power(fci, gamma) * 255).clip(0, 255).astype(np.uint8)
 
+def rgb_colour(img, gamma=0.45):
+    """True RGB composite (band indices 2,1,0 = R,G,B), gamma-corrected, uint8."""
+    rgb = np.stack([img[:,:,2], img[:,:,1], img[:,:,0]], axis=2).astype(np.float32)
+    rgb -= rgb.min()
+    mx   = rgb.max()
+    if mx > 0:
+        rgb /= mx
+    return (np.power(rgb, gamma) * 255).clip(0, 255).astype(np.uint8)
+
+# Mahalanobis thresholds (from generate_mahalanobis_baseline.py, Youden's J)
+MAH_THRESHOLDS = {"z1": 5.5633, "z2": 4.6594, "e1": 4.1169, "e2": 5.2268}
+
 # ─── Legend ───────────────────────────────────────────────────────────────────
 def make_legend():
     return [
@@ -248,14 +260,16 @@ def main():
         t0 = time.time()
         img, gt, seg = load_scene(name, w, h)
         X, y = extract_features(img, gt, seg)
-        fci  = false_colour(img)
-        scenes_data[name] = dict(X=X, y=y, seg=seg, img=img, fci=fci, w=w, h=h)
+        fci  = rgb_colour(img)
+        # Mahalanobis overlay (feature index 18 = mah score in 19-D)
+        mah_score = X[:, 18]
+        mah_pred  = (mah_score > MAH_THRESHOLDS[name]).astype(int)
+        pmap_mah  = build_overlay_map(fci, seg, y, mah_pred, h, w)
+        scenes_data[name] = dict(X=X, y=y, seg=seg, img=img, fci=fci,
+                                 pmap_mah=pmap_mah, w=w, h=h)
         print(f"  {name}: {len(X):,} superpixels  [{time.time()-t0:.1f}s]")
 
-    # ── 2. Global scaler (matches al_cal_experiment.py) ──────────
-    scaler = StandardScaler().fit(
-        np.vstack([scenes_data[n]['X'] for n in SCENES])
-    )
+    SCENE_SEED_OFFSET = {"z1": 0, "z2": 10, "e1": 20, "e2": 30}
 
     # ── 3. Run AL per scene ───────────────────────────────────────
     print("\n[2/3] Running AL experiments (single seed for reproducibility)...")
@@ -264,20 +278,23 @@ def main():
     for name, (w, h) in IMAGES.items():
         d = scenes_data[name]
         X, y, seg = d['X'], d['y'], d['seg']
-        Xsc  = scaler.transform(X).astype(np.float32)
-        budget = min(MAX_BUDGET, int(MAX_PCT * len(X)))
 
-        # Identical split to al_cal_experiment.py
-        np.random.seed(SEED_BASE)
-        ai = np.where(y==1)[0];  ni = np.where(y==0)[0]
-        np.random.shuffle(ai);   np.random.shuffle(ni)
-        ca, cn   = int(0.7*len(ai)), int(0.7*len(ni))
-        pool_idx = np.concatenate([ai[:ca], ni[:cn]])
-        test_idx = np.concatenate([ai[ca:], ni[cn:]])
+        # Per-scene scaler (matches al_cal_experiment.py)
+        rng_split = np.random.default_rng(SEED_BASE)
+        ai = np.where(y==1)[0]; ni = np.where(y==0)[0]
+        ca, cn = int(0.7*len(ai)), int(0.7*len(ni))
+        pool_idx = np.concatenate([
+            rng_split.choice(ai, ca, replace=False),
+            rng_split.choice(ni, cn, replace=False)
+        ])
+        test_idx = np.array([i for i in range(len(y)) if i not in set(pool_idx.tolist())])
+        scaler = StandardScaler().fit(X[pool_idx])
+        Xsc  = scaler.transform(X).astype(np.float32)
         X_pool, y_pool = Xsc[pool_idx], y[pool_idx]
         X_test, y_test = Xsc[test_idx], y[test_idx]
+        budget = min(MAX_BUDGET, int(MAX_PCT * len(pool_idx)))
 
-        seed = SEED_BASE + RUN_ID*100 + hash(name)%100
+        seed = SEED_BASE + RUN_ID*100 + SCENE_SEED_OFFSET[name]
         print(f"\n  {name.upper()}  budget={budget}  seed={seed}")
 
         # Standard AL (r+=1, symmetric SVM)
@@ -305,7 +322,8 @@ def main():
         pmap_cal = build_overlay_map(d['fci'], seg, y[all_idx], y_pred_cal_all, h, w)
 
         scene_maps[name] = dict(
-            fci=d['fci'], pmap_std=pmap_std, pmap_cal=pmap_cal,
+            fci=d['fci'], pmap_mah=d['pmap_mah'],
+            pmap_std=pmap_std, pmap_cal=pmap_cal,
             std_stats=compute_stats(y_test, y_pred_std_test),
             cal_stats=compute_stats(y_test, y_pred_cal_test),
         )
@@ -329,8 +347,8 @@ def main():
         ax_std = axes[row, 1]
         ax_cal = axes[row, 2]
 
-        ax_fci.imshow(m['fci'])
-        ax_fci.set_title(f"{scene_labels[name]}\nFalse Colour (NIR/R/G)",
+        ax_fci.imshow(m['pmap_mah'])
+        ax_fci.set_title(f"{scene_labels[name]}\nMahalanobis Baseline",
                          color='white', fontsize=10, fontweight='bold')
         ax_fci.axis('off')
 
@@ -373,8 +391,8 @@ def main():
         ax_std = axes[row, 1]
         ax_cal = axes[row, 2]
 
-        ax_fci.imshow(m['fci'])
-        ax_fci.set_title(f"{scene_labels[name]}\nFalse Colour (NIR/R/G)",
+        ax_fci.imshow(m['pmap_mah'])
+        ax_fci.set_title(f"{scene_labels[name]}\nMahalanobis Baseline",
                          color='white', fontsize=12, fontweight='bold')
         ax_fci.axis('off')
 
