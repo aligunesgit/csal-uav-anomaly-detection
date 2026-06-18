@@ -154,19 +154,26 @@ def query_unc_kernelkmeans(clf, X_unlab, n):
         chosen.extend(rest[:n-len(chosen)])
     return np.array(chosen[:n])
 
-def query_cal(clf, X_unlab, n):
-    """Algorithm 1: Stage 1 margin uncertainty → Stage 2 kernel k-means."""
+def query_cal(clf, X_unlab, n, r_plus=1):
+    """Algorithm 1: Stage 1 risk-sensitive uncertainty → Stage 2 kernel k-means.
+
+    Risk-sensitive score (Eq. 4):
+      u(x) = r+ * |d(x)|  if d(x) < 0  (predicted anomaly — higher FN cost)
+      u(x) = |d(x)|        otherwise    (predicted normal)
+    Selects M candidates with smallest u(x), then applies kernel k-means diversity.
+    """
     cap  = min(len(X_unlab), POOL_CAP)
     idx0 = np.random.choice(len(X_unlab), cap, replace=False)
     Xu   = X_unlab[idx0]
-    scores = np.abs(clf.decision_function(Xu))
+    dec  = clf.decision_function(Xu)
+    u    = np.where(dec < 0, r_plus * np.abs(dec), np.abs(dec))  # Eq. 4
     M    = min(5*n, len(Xu))
-    top_M= np.argsort(scores)[:M]
+    top_M= np.argsort(u)[:M]
     nys  = Nystroem(kernel='rbf', gamma=1.0/Xu.shape[1],
                     n_components=min(64,M), random_state=42).fit(Xu[top_M])
     Xk   = nys.transform(Xu[top_M])
     km   = MiniBatchKMeans(n_clusters=n, n_init=3, random_state=42).fit(Xk)
-    unc  = scores[top_M]
+    unc  = u[top_M]
     chosen = []
     for c in range(n):
         mask = (km.labels_==c)
@@ -240,7 +247,7 @@ def al_run(method, r_plus_train, X_pool, y_pool, X_test, y_test, seed, budget):
             elif method == "Unc+KernelKMeans":
                 local_q = query_unc_kernelkmeans(clf_q, X_unl, q)
             else:  # cAL
-                local_q = query_cal(clf_q, X_unl, q)
+                local_q = query_cal(clf_q, X_unl, q, r_plus=r_plus_train)
 
         for li in local_q:
             labeled.add(int(unlabeled_arr[li]))
@@ -262,24 +269,30 @@ def build_methods():
     return (["Random", "Standard AL", "Unc+KernelKMeans"] +
             [f"cAL r+={r}" for r in R_PLUS_LEVELS])
 
-def run_experiments(scenes_X, scenes_y, scaler):
+def run_experiments(scenes_X, scenes_y):
     methods = build_methods()
     all_results = {}
 
     for scene in SCENES:
         print(f"\n{'='*55}\n  Scene {scene.upper()}\n{'='*55}")
         X, y = scenes_X[scene], scenes_y[scene]
-        Xsc  = scaler.transform(X).astype(np.float32)
         budget = min(MAX_BUDGET, int(MAX_PCT * len(X)))
 
-        np.random.seed(SEED_BASE)
+        # Stratified 70/30 split — consistent with ablation_feature_sets.py
+        rng_split = np.random.default_rng(SEED_BASE)
         ai = np.where(y==1)[0]; ni = np.where(y==0)[0]
-        np.random.shuffle(ai); np.random.shuffle(ni)
         ca, cn = int(0.7*len(ai)), int(0.7*len(ni))
-        pool_idx = np.concatenate([ai[:ca], ni[:cn]])
-        test_idx = np.concatenate([ai[ca:], ni[cn:]])
-        X_pool, y_pool = Xsc[pool_idx], y[pool_idx]
-        X_test, y_test = Xsc[test_idx], y[test_idx]
+        pool_idx = np.concatenate([
+            rng_split.choice(ai, ca, replace=False),
+            rng_split.choice(ni, cn, replace=False),
+        ])
+        test_idx = np.array([i for i in range(len(y)) if i not in set(pool_idx.tolist())])
+
+        # Per-scene scaler fitted on pool only (no test leakage)
+        scaler = StandardScaler().fit(X[pool_idx])
+        X_pool = scaler.transform(X[pool_idx]).astype(np.float32)
+        X_test = scaler.transform(X[test_idx]).astype(np.float32)
+        y_pool, y_test = y[pool_idx], y[test_idx]
 
         # Full-pool baseline: separate cSVM per r_+ level (KEY FIX)
         full_costs = {}
@@ -541,10 +554,8 @@ def main():
         scenes_X[name]=X; scenes_y[name]=y
         print(f"  {name}: {len(X):,} SPs  anom={y.sum():,} ({100*y.mean():.1f}%)")
 
-    scaler = StandardScaler().fit(np.vstack(list(scenes_X.values())))
-
     print("\n[2/3] Running …")
-    all_results = run_experiments(scenes_X, scenes_y, scaler)
+    all_results = run_experiments(scenes_X, scenes_y)
 
     print("\n[3/3] Figures …")
     plot_cal_vs_baselines(all_results)
