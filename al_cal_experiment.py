@@ -43,6 +43,8 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 IMAGES   = {"z1":(3807,2141), "z2":(2081,957), "e1":(3629,961), "e2":(1094,707)}
 SCENES   = list(IMAGES.keys())
+# Deterministic per-scene seed offset — avoids hash() which varies with PYTHONHASHSEED
+SCENE_SEED_OFFSET = {s: i * 10 for i, s in enumerate(SCENES)}  # z1=0, z2=10, e1=20, e2=30
 N_INIT   = 20
 BATCH_Q  = 50
 MAX_BUDGET = 600
@@ -311,7 +313,7 @@ def run_experiments(scenes_X, scenes_y):
             run_labs, run_costs_all, run_aucs, run_fnrs = [], [], [], []
 
             for run_id in range(N_RUNS):
-                seed = SEED_BASE + run_id*100 + hash(scene)%100
+                seed = SEED_BASE + run_id * 100 + SCENE_SEED_OFFSET[scene]
                 nl, costs_d, au, fn = al_run(method, r_train,
                                               X_pool, y_pool, X_test, y_test,
                                               seed, budget)

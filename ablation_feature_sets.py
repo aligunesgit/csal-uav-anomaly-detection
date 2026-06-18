@@ -44,6 +44,8 @@ N_RUNS    = 3
 POOL_CAP  = 10_000
 SEED_BASE = 2024
 R_PLUS    = 4          # ablation runs cAL at r+=4 only
+# Deterministic per-scene seed offset — matches al_cal_experiment.py
+SCENE_SEED_OFFSET = {s: i * 10 for i, s in enumerate(SCENES)}  # z1=0, z2=10, e1=20, e2=30
 
 FEATURE_MODES = ["5d", "10d", "19d"]
 
@@ -240,7 +242,7 @@ def main():
 
             run_fnrs, run_costs = [], []
             for run in range(N_RUNS):
-                seed = SEED_BASE + run * 1000
+                seed = SEED_BASE + run * 100 + SCENE_SEED_OFFSET[scene]
                 n_labs, costs, fnrs = al_run(X_pool, y_pool, X_test, y_test,
                                              r_plus=R_PLUS, seed=seed, budget=budget)
                 run_costs.append(costs[-1] if len(costs) > 0 else np.nan)
